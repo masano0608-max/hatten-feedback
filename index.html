@@ -295,6 +295,34 @@
   .prev-section-text { font-size: 13px; line-height: 1.75; color: var(--text); }
   .prev-section-text + .prev-section-text { margin-top: 8px; }
 
+  .edit-area-wrap {
+    border-top: 1px solid var(--border);
+    padding: 12px 18px;
+  }
+  .edit-area-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .edit-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.75;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .edit-textarea:focus { outline: none; border-color: var(--accent); }
+
   .checklist {
     padding: 12px 18px;
     border-top: 1px solid var(--border);
@@ -377,6 +405,10 @@
     </div>
     <div class="prev-body" id="preview">
       <span class="prev-empty">左のセクションからテンプレートを選ぶと、ここにフィードバック文が表示されます。</span>
+    </div>
+    <div class="edit-area-wrap" id="edit-area-wrap" style="display:none">
+      <div class="edit-area-label">編集エリア（修正してからコピー）</div>
+      <textarea class="edit-textarea" id="edit-textarea" placeholder="テンプレートを選ぶと自動で入力されます"></textarea>
     </div>
     <div class="checklist" id="checklist"></div>
   </div>
@@ -1076,8 +1108,12 @@ function updatePreview(){
     const texts = sec.multi ? state[k].map(i => sec.items[i].text) : (state[k] !== null ? [sec.items[state[k]].text] : []);
     if(texts.length) parts.push({key:k, label:sec.label, texts});
   });
+  const editWrap = document.getElementById("edit-area-wrap");
+  const editTextarea = document.getElementById("edit-textarea");
   if(!parts.length){
     prev.innerHTML = '<span class="prev-empty">左のセクションからテンプレートを選ぶと、ここにフィードバック文が表示されます。</span>';
+    editWrap.style.display = "none";
+    editTextarea.value = "";
     copyBtn.disabled = true;
     return;
   }
@@ -1088,6 +1124,13 @@ function updatePreview(){
       <div class="prev-section-label">${p.label}</div>
       ${p.texts.map(t => `<div class="prev-section-text">${DATA[p.key].multi && p.texts.length > 1 ? '・' : ''}${t}</div>`).join("")}
     </div>`).join("");
+  // 編集エリアにプレーンテキストを反映（既存の手動編集は上書きしない）
+  const plainLines = [];
+  parts.forEach(p => {
+    p.texts.forEach(t => plainLines.push((DATA[p.key].multi && p.texts.length > 1 ? "・" : "") + t));
+  });
+  editTextarea.value = plainLines.join("\n\n");
+  editWrap.style.display = "block";
 }
 
 function updateChecklist(){
@@ -1126,20 +1169,14 @@ function copyText(){
     setTimeout(() => w.classList.remove("show"), 3000);
     return;
   }
-  const parts = [];
   const usedLabels = [];
   SEC_ORDER.forEach(k => {
     const sec = DATA[k];
     const idxs = sec.multi ? state[k] : (state[k] !== null ? [state[k]] : []);
-    const texts = idxs.map(i => sec.items[i].text);
     if(idxs.length) usedLabels.push(sec.label + ":" + idxs.map(i => sec.items[i].type).join("/"));
-    if(sec.multi && texts.length > 1){
-      texts.forEach(t => parts.push("・" + t));
-    } else {
-      texts.forEach(t => parts.push(t));
-    }
   });
-  navigator.clipboard.writeText(parts.join("\n\n")).then(() => {
+  const editedText = document.getElementById("edit-textarea").value;
+  navigator.clipboard.writeText(editedText).then(() => {
     const btn = document.getElementById("copy-btn");
     btn.textContent = "コピー済！";
     setTimeout(() => btn.textContent = "コピー", 1800);
